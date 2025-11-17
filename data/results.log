@@ -1,2 +1,3 @@
-2025-11-08 04:25:01.103000Z;cliente=ana;conductor=luis;origen=Armenia;destino=Calarca;estado=Completado;modo=auto;duracion=1s
-
+2025-11-17 23:16:58.463000Z;cliente=ana;conductor=conductor_demo;origen=Armenia;destino=Montenegro;estado=Completado;modo=auto;duracion=5s
+2025-11-17 23:24:45.555000Z;cliente=ana;conductor=conductor_demo;origen=Armenia;destino=Montenegro;estado=Completado;modo=auto;duracion=5s
+2025-11-17 23:36:03.116000Z;cliente=ana;conductor=conductor_demo;origen=Armenia;destino=Montenegro;estado=Completado;modo=auto;duracion=5s

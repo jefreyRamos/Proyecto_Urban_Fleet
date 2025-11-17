@@ -1,116 +1,122 @@
-defmodule Urbanfleet.Server do
-  @moduledoc """
-  Servidor central del sistema UrbanFleet.
-  Gestiona los comandos de usuarios y los viajes activos.
-  """
-
+defmodule UrbanFleet.Server do
   use GenServer
-  alias Urbanfleet.{UserManager, TripSupervisor, Persistence}
+  alias UrbanFleet.{UserManager, Persistence, TripSupervisor, Location}
 
-  # ==================
-  #  API Pública
-  # ==================
+  def start_link(_opts \\ []), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
 
-  def start_link(_opts \\ []) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  def crear_viaje(cli, cond, ori, dest, dur \\ 5000) do
+    GenServer.call(__MODULE__, {:crear_viaje, cli, cond, ori, dest, dur})
   end
 
-  @doc """
-  Crea un viaje entre un cliente y un conductor.
-  """
-  def crear_viaje(cliente, conductor, origen, destino, duracion_ms \\ 5000) do
-    GenServer.call(__MODULE__, {:crear_viaje, cliente, conductor, origen, destino, duracion_ms})
-  end
+  def mostrar_resultados, do: GenServer.call(__MODULE__, :mostrar_resultados)
+  def mostrar_ranking, do: GenServer.call(__MODULE__, :mostrar_ranking)
 
-  @doc """
-  Muestra el historial de viajes desde results.log.
-  """
-  def mostrar_resultados do
-    GenServer.call(__MODULE__, :mostrar_resultados)
-  end
+  def request_trip(usuario, origen, destino),
+    do: GenServer.call(__MODULE__, {:request_trip, usuario, origen, destino})
 
-  @doc """
-  Muestra el ranking de usuarios.
-  """
-  def mostrar_ranking do
-    GenServer.call(__MODULE__, :mostrar_ranking)
-  end
+  def list_trips, do: GenServer.call(__MODULE__, :list_trips)
 
-  # ==================
-  #  Callbacks del GenServer
-  # ==================
+  def accept_trip(id, conductor),
+    do: GenServer.call(__MODULE__, {:accept_trip, id, conductor})
 
   @impl true
-  def init(_arg) do
-    {:ok, %{}}
-  end
+  def init(_arg), do: {:ok, %{pending_trips: %{}, trip_counter: 0}}
+
+  ## --------------------
+  ## handle_call
+  ## --------------------
 
   @impl true
-  def handle_call({:crear_viaje, cliente, conductor, origen, destino, duracion_ms}, _from, state) do
-    # Validar existencia de usuarios
-    with {:ok, _} <- validar_usuario(cliente),
-         {:ok, _} <- validar_usuario(conductor) do
+  def handle_call({:crear_viaje, cliente, conductor, origen, destino, duracion}, _from, state) do
+    IO.puts("🚕 Creando viaje #{cliente} → #{destino} con #{conductor}")
 
-      info = %{
-        cliente: cliente,
-        conductor: conductor,
-        origen: origen,
-        destino: destino,
-        duracion_ms: duracion_ms
-      }
+    {:ok, pid} =
+      DynamicSupervisor.start_child(
+        UrbanFleet.TripSupervisor,
+        {UrbanFleet.Trip, %{cliente: cliente, conductor: conductor, origen: origen, destino: destino, duracion_ms: duracion}}
+      )
 
-      case TripSupervisor.start_trip(info) do
-        {:ok, pid} ->
-          {:reply, {:ok, pid}, state}
+    new_state = %{state | trip_counter: state.trip_counter + 1}
 
-        {:error, error} ->
-          {:reply, {:error, error}, state}
-      end
+    {:reply, {:ok, pid}, new_state}
+  end
+
+  def handle_call({:request_trip, cliente, ori, dest}, _from, st) do
+    if Location.valid?(ori) and Location.valid?(dest) do
+      id = "trip#{st.trip_counter + 1}"
+      info = %{cliente: cliente, origen: ori, destino: dest}
+
+      ref = Process.send_after(self(), {:expire_trip, id}, 30_000)
+
+      pending = Map.put(st.pending_trips, id, Map.put(info, :timer_ref, ref))
+
+      {:reply, {:ok, id}, %{st | pending_trips: pending, trip_counter: st.trip_counter + 1}}
     else
-      {:error, :no_user, u} ->
-        {:reply, {:error, "Usuario no encontrado: #{u}"}, state}
+      {:reply, {:error, "Ubicación inválida"}, st}
     end
   end
 
-  @impl true
-  def handle_call(:mostrar_resultados, _from, state) do
-    log_path = "data/results.log"
+  def handle_call(:list_trips, _from, st), do: {:reply, st.pending_trips, st}
 
-    case File.exists?(log_path) do
-      true ->
-        contenido =
-          Persistence.read_lines(log_path)
-          |> Enum.join("\n")
+  def handle_call({:accept_trip, id, cond}, _from, st) do
+    case Map.get(st.pending_trips, id) do
+      nil ->
+        {:reply, {:error, "Viaje no encontrado"}, st}
 
-        IO.puts("📜 HISTORIAL DE VIAJES:\n" <> contenido)
-        {:reply, :ok, state}
+      info ->
+        Process.cancel_timer(info.timer_ref)
+        new_pending = Map.delete(st.pending_trips, id)
 
-      false ->
-        {:reply, {:error, "No hay resultados registrados aún."}, state}
+        full =
+          info
+          |> Map.put(:conductor, cond)
+          |> Map.put(:duracion_ms, 20_000)
+
+        case TripSupervisor.start_trip(full) do
+          {:ok, _pid} -> {:reply, {:ok, id}, %{st | pending_trips: new_pending}}
+          _ -> {:reply, {:error, "Error al iniciar viaje"}, st}
+        end
     end
   end
 
-  @impl true
-  def handle_call(:mostrar_ranking, _from, state) do
-    ranking = UserManager.ranking(10)
+  def handle_call(:mostrar_resultados, _from, st) do
+    path = "data/results.log"
 
-    IO.puts("\n🏆 RANKING GENERAL")
-    IO.puts("----------------------")
-    Enum.each(ranking, fn {usuario, puntos, rol} ->
-      IO.puts("#{usuario} (#{rol}): #{puntos} pts")
-    end)
-
-    {:reply, :ok, state}
+    if File.exists?(path) do
+      IO.puts("📜 HISTORIAL:\n" <> (Persistence.read_lines(path) |> Enum.join("\n")))
+      {:reply, :ok, st}
+    else
+      {:reply, {:error, "No hay registros"}, st}
+    end
   end
 
-  # ==================
-  #  Funciones privadas
-  # ==================
+  def handle_call(:mostrar_ranking, _from, st) do
+    IO.puts("\n🏆 RANKING\n------------------")
+    UserManager.ranking(10)
+    |> Enum.each(fn {u,p,r} -> IO.puts("#{u} (#{r}): #{p} pts") end)
 
-  defp validar_usuario(nombre) do
-    case UserManager.get_score(nombre) do
-      {:ok, _} -> {:ok, nombre}
-      {:error, :no_user} -> {:error, :no_user, nombre}
+    {:reply, :ok, st}
+  end
+
+  ## --------------------
+  ## handle_info
+  ## --------------------
+
+  @impl true
+  def handle_info({:expire_trip, id}, st) do
+    case Map.get(st.pending_trips, id) do
+      nil ->
+        {:noreply, st}
+
+      info ->
+        UserManager.update_score(info.cliente, -5)
+
+        Persistence.append_line(
+          "data/results.log",
+          "#{DateTime.utc_now()};cliente=#{info.cliente};origen=#{info.origen};destino=#{info.destino};estado=Expirado"
+        )
+
+        {:noreply, %{st | pending_trips: Map.delete(st.pending_trips, id)}}
     end
   end
 end

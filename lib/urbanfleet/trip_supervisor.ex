@@ -1,4 +1,4 @@
-defmodule Urbanfleet.TripSupervisor do
+defmodule UrbanFleet.TripSupervisor do
   use DynamicSupervisor
 
   def start_link(_opts) do
@@ -11,8 +11,7 @@ defmodule Urbanfleet.TripSupervisor do
 
   @doc "Crea un nuevo viaje supervisado."
   def start_trip(info) do
-    spec = {Urbanfleet.Trip, info}
+    spec = {UrbanFleet.Trip, info}
     DynamicSupervisor.start_child(__MODULE__, spec)
   end
 end
-

@@ -1,19 +1,31 @@
-defmodule Urbanfleet.Persistence do
-  @moduledoc """
-  Utilidades para leer y escribir archivos de texto de manera segura.
-  """
+defmodule UrbanFleet.Persistence do
+  def ensure_dir(path) do
+    dir = Path.dirname(path)
+    File.mkdir_p!(dir)
+  end
 
-  def read_lines(path) do
-    if File.exists?(path), do: File.read!(path) |> String.split("\n", trim: true), else: []
+  # lista → archivo
+  def write_lines(lines, path) when is_list(lines) and is_binary(path) do
+    ensure_dir(path)
+    File.write!(path, Enum.join(lines, "\n"))
+  end
+
+  # cadena → archivo
+  def write_lines(line, path) when is_binary(line) and is_binary(path) do
+    ensure_dir(path)
+    File.write!(path, line)
   end
 
   def append_line(path, line) do
+    ensure_dir(path)
     File.write!(path, line <> "\n", [:append])
   end
 
-  def write_lines(path, lines) when is_list(lines) do
-    tmp = path <> ".tmp"
-    File.write!(tmp, Enum.join(lines, "\n") <> "\n")
-    File.rename!(tmp, path)
+  def read_lines(path) do
+    case File.read(path) do
+      {:ok, content} -> String.split(content, "\n", trim: true)
+      {:error, _} -> []
+    end
   end
 end
+

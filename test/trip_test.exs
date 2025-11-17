@@ -1,6 +1,6 @@
 defmodule TripTest do
   use ExUnit.Case
-  alias Urbanfleet.{Trip, UserManager}
+  alias UrbanFleet.{Trip, UserManager}
 
   setup do
     File.write!("data/users.dat", "")

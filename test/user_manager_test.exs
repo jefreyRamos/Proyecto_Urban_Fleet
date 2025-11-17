@@ -1,6 +1,6 @@
 defmodule UserManagerTest do
   use ExUnit.Case
-  alias Urbanfleet.UserManager
+  alias UrbanFleet.UserManager
 
   setup do
     # Limpia el archivo de usuarios y reinicia el proceso antes de cada prueba

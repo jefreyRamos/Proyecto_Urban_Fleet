@@ -1,6 +1,6 @@
 defmodule ServerTest do
   use ExUnit.Case
-  alias Urbanfleet.{Server, UserManager}
+  alias UrbanFleet.{Server, UserManager}
 
   setup do
     File.write!("data/users.dat", "")

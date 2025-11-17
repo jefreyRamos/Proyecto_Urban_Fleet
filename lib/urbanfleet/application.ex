@@ -6,13 +6,14 @@ defmodule ProyectoUrbanFleet.Application do
   def start(_type, _args) do
     children = [
       # Aquí se listan los procesos supervisados
-      Urbanfleet.UserManager,
-      Urbanfleet.TripSupervisor,
-      Urbanfleet.Server
+      UrbanFleet.UserManager,
+      UrbanFleet.TripSupervisor,
+      UrbanFleet.Server
     ]
 
     # Opciones del supervisor
     opts = [strategy: :one_for_one, name: ProyectoUrbanFleet.Supervisor]
     Supervisor.start_link(children, opts)
+
   end
 end
