@@ -1,7 +1,7 @@
 defmodule UrbanFleet.CLI do
+  # Interfaz de línea de comandos para UrbanFleet
   alias UrbanFleet.{UserManager, Server}
-
-  # ACCESOS CORREGIDOS PARA PROCESOS GLOBALES
+  # Accesos simplificados al UserManager y Server
   defp um_call(msg), do: GenServer.call({:global, UserManager}, msg)
   defp sv_call(msg), do: GenServer.call({:global, Server}, msg)
 
@@ -10,21 +10,20 @@ defmodule UrbanFleet.CLI do
     loop(%{connected: false, user: nil})
   end
 
+  # es un bucle REPL simple el cual procesa comandos
   defp loop(state) do
     input = IO.gets("> ") |> String.trim()
     new_state = process(input, state)
     loop(new_state)
   end
 
-  # -------------------------------------------------------------
-  # register user role password
-  # -------------------------------------------------------------
+  # registrar usuario
   defp process("register " <> rest, state) do
     case String.split(rest, " ") do
       [user, role, pass] ->
         case um_call({:register, user, role, pass}) do
           {:ok, _} -> IO.puts("✔ Usuario registrado.")
-          {:error, :already_exists} -> IO.puts("❌ El usuario ya existe.")
+          {:error, :already_exists} -> IO.puts(" El usuario ya existe.")
         end
 
       _ ->
@@ -34,46 +33,42 @@ defmodule UrbanFleet.CLI do
     state
   end
 
-  # -------------------------------------------------------------
-  # trip_status
-  # -------------------------------------------------------------
+  # estado del viaje
   defp process("trip_status " <> id, state) do
     id = String.trim(id)
 
     case sv_call({:trip_status, id}) do
       {:ok, st} -> IO.puts("Estado del viaje: #{inspect(st)}")
-      {:error, msg} -> IO.puts("❌ #{msg}")
+      {:error, msg} -> IO.puts(" #{msg}")
     end
 
     state
   end
 
-  # -------------------------------------------------------------
   # connect username pass
-  # -------------------------------------------------------------
   defp process("connect " <> rest, state) do
     case String.split(rest, " ") do
       [user, pass] ->
         case um_call({:login, user, pass}) do
           {:ok, u} ->
-            IO.puts("✔ Sesión iniciada: #{u.username} (#{u.role})")
+            IO.puts(" Sesión iniciada: #{u.username} (#{u.role})")
             %{state | connected: true, user: u}
 
           {:error, :no_user} ->
-            IO.puts("⚠ Usuario no encontrado. Registrando automáticamente como cliente...")
+            IO.puts(" Usuario no encontrado. Registrando automáticamente como cliente...")
 
             case um_call({:register, user, "cliente", pass}) do
               {:ok, u} ->
-                IO.puts("✔ Usuario creado y conectado.")
+                IO.puts(" Usuario creado y conectado.")
                 %{state | connected: true, user: u}
 
               _ ->
-                IO.puts("❌ No se pudo crear el usuario.")
+                IO.puts(" No se pudo crear el usuario.")
                 state
             end
 
           {:error, :wrong_pass} ->
-            IO.puts("❌ Contraseña incorrecta.")
+            IO.puts(" Contraseña incorrecta.")
             state
         end
 
@@ -83,9 +78,7 @@ defmodule UrbanFleet.CLI do
     end
   end
 
-  # -------------------------------------------------------------
-  # disconnect
-  # -------------------------------------------------------------
+  # isconnect
   defp process("disconnect", %{user: nil} = state) do
     IO.puts("No hay sesión activa.")
     state
@@ -96,19 +89,17 @@ defmodule UrbanFleet.CLI do
     %{state | connected: false, user: nil}
   end
 
-  # -------------------------------------------------------------
   # CLIENTE: request_trip
-  # -------------------------------------------------------------
   defp process("request_trip " <> args, %{connected: true, user: %{role: "cliente"} = u} = state) do
     case parse_trip_args(args) do
       {:ok, origen, destino} ->
         case sv_call({:request_trip, u.username, origen, destino}) do
-          {:ok, id} -> IO.puts("🚗 Viaje solicitado con ID: #{id}")
-          {:error, msg} -> IO.puts("❌ Error: #{msg}")
+          {:ok, id} -> IO.puts(" Viaje solicitado con ID: #{id}")
+          {:error, msg} -> IO.puts(" Error: #{msg}")
         end
 
       {:error, msg} ->
-        IO.puts("❌ #{msg}")
+        IO.puts(" #{msg}")
     end
 
     state
@@ -119,15 +110,13 @@ defmodule UrbanFleet.CLI do
     state
   end
 
-  # -------------------------------------------------------------
   # CONDUCTOR: accept_trip
-  # -------------------------------------------------------------
   defp process("accept_trip " <> id, %{connected: true, user: %{role: "conductor"} = u} = state) do
     id = String.trim(id)
 
     case sv_call({:accept_trip, id, u.username}) do
-      {:ok, _pid} -> IO.puts("✔ Viaje aceptado.")
-      {:error, msg} -> IO.puts("❌ Error: #{msg}")
+      {:ok, _pid} -> IO.puts(" Viaje aceptado.")
+      {:error, msg} -> IO.puts(" Error: #{msg}")
     end
 
     state
@@ -138,34 +127,26 @@ defmodule UrbanFleet.CLI do
     state
   end
 
-  # -------------------------------------------------------------
   # list_trips
-  # -------------------------------------------------------------
   defp process("list_trips", state) do
     trips = sv_call(:list_trips)
-    IO.puts("🚕 Viajes pendientes: #{inspect(trips)}")
+    IO.puts(" Viajes pendientes: #{inspect(trips)}")
     state
   end
 
-  # -------------------------------------------------------------
   # ranking
-  # -------------------------------------------------------------
   defp process("ranking", state) do
     sv_call(:mostrar_ranking)
     state
   end
 
-  # -------------------------------------------------------------
   # resultados
-  # -------------------------------------------------------------
   defp process("resultados", state) do
     sv_call(:mostrar_resultados)
     state
   end
 
-  # -------------------------------------------------------------
   # help
-  # -------------------------------------------------------------
   defp process("help", state) do
     IO.puts("""
     Comandos disponibles:
@@ -183,17 +164,13 @@ defmodule UrbanFleet.CLI do
     state
   end
 
-  # -------------------------------------------------------------
   # comando desconocido
-  # -------------------------------------------------------------
   defp process(cmd, state) do
     IO.puts("Comando no reconocido: #{cmd}")
     state
   end
 
-  # -------------------------------------------------------------
   # parse_trip_args
-  # -------------------------------------------------------------
   defp parse_trip_args(args) do
     parts =
       args

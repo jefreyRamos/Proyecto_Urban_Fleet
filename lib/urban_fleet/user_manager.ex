@@ -1,10 +1,11 @@
 defmodule UrbanFleet.UserManager do
+  # Gestor de usuarios, registro, login, sesiones y puntajes
   use GenServer
   alias UrbanFleet.Persistence
 
   @data_file "data/users.dat"
 
-  # 🔥 REGISTRO GLOBAL
+  # REGISTRO GLOBAL
   def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
   end
@@ -37,17 +38,14 @@ defmodule UrbanFleet.UserManager do
   def all_users,
     do: GenServer.call({:global, __MODULE__}, :all_users)
 
-  # INIT
+  # Init
   @impl true
   def init(_arg) do
     users = load_users_from_file()
     {:ok, %{users: users, sessions: %{}, stats: %{}}}
   end
 
-  # ============================================================
-  # ========================= CASTS =============================
-  # ============================================================
-
+  # CASTS
   @impl true
   def handle_cast({:connect, username}, state) do
     {:noreply, %{state | sessions: Map.put(state.sessions, username, System.system_time(:second))}}
@@ -57,10 +55,7 @@ defmodule UrbanFleet.UserManager do
     {:noreply, %{state | sessions: Map.delete(state.sessions, username)}}
   end
 
-  # ============================================================
-  # ========================= CALLS =============================
-  # ============================================================
-
+  # CALLS
   @impl true
   def handle_call({:register, username, role, pass}, _from, state) do
     if Map.has_key?(state.users, username) do
@@ -116,10 +111,7 @@ defmodule UrbanFleet.UserManager do
 
   def handle_call(:all_users, _from, state), do: {:reply, state.users, state}
 
-  # ============================================================
-  # ========================= HELPERS ===========================
-  # ============================================================
-
+  # HELPERS
   defp load_users_from_file do
     Persistence.read_lines(@data_file)
     |> Enum.reduce(%{}, fn line, acc ->

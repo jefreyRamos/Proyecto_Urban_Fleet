@@ -1,7 +1,8 @@
 defmodule UrbanFleet.TripSupervisor do
+  # Supervisor dinámico para viajes
   use DynamicSupervisor
 
-  # 🔥 REGISTRO GLOBAL
+  # REGISTRO GLOBAL
   def start_link(_opts) do
     DynamicSupervisor.start_link(__MODULE__, :ok, name: {:global, __MODULE__})
   end

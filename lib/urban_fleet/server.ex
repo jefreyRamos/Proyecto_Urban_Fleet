@@ -1,12 +1,13 @@
 defmodule UrbanFleet.Server do
+  # Es el cerebro del sistema, reibe y gestiona las solicitudes de viajes
   use GenServer
   alias UrbanFleet.{UserManager, Persistence,  Location, Trip}
 
-  # 🔥 REGISTRO GLOBAL
+  # REGISTRO GLOBAL
   def start_link(_opts \\ []),
     do: GenServer.start_link(__MODULE__, %{}, name: {:global, __MODULE__})
 
-  ## API usando global
+  # API usando global
   def crear_viaje(cli, cond, ori, dest, dur \\ 90000),
     do: GenServer.call({:global, __MODULE__}, {:crear_viaje, cli, cond, ori, dest, dur})
 
@@ -28,7 +29,7 @@ defmodule UrbanFleet.Server do
   def trip_status(id),
     do: GenServer.call({:global, __MODULE__}, {:trip_status, id})
 
-  # INIT
+  # Init es donde se inicializa el estado del GenServer
   @impl true
   def init(_) do
     {:ok,
@@ -39,10 +40,7 @@ defmodule UrbanFleet.Server do
       }}
   end
 
-  # =====================================================
-  # ============ GRUPO COMPLETO handle_call/3 ===========
-  # =====================================================
-
+  # GRUPO COMPLETO handle_call/3
   @impl true
   def handle_call({:crear_viaje, cliente, conductor, origen, destino, duracion}, _from, state) do
     if not Location.valid?(origen) or not Location.valid?(destino) do
@@ -60,6 +58,7 @@ defmodule UrbanFleet.Server do
     end
   end
 
+  # handle_call/3 es donde se manejan las llamadas síncronas al GenServer
   @impl true
   def handle_call({:request_trip, cliente, ori, dest}, _from, st) do
     if Location.valid?(ori) and Location.valid?(dest) do
@@ -71,7 +70,7 @@ defmodule UrbanFleet.Server do
       pending = Map.put(st.pending_trips, id, Map.put(info, :timer_ref, ref))
 
       {:reply, {:ok, id},
-       %{st | pending_trips: pending, trip_counter: st.trip_counter + 1}}
+      %{st | pending_trips: pending, trip_counter: st.trip_counter + 1}}
     else
       {:reply, {:error, "Ubicación inválida"}, st}
     end
@@ -101,7 +100,7 @@ defmodule UrbanFleet.Server do
             new_active = Map.put(st.active_trips, id, pid)
 
             {:reply, {:ok, pid},
-             %{st | pending_trips: new_pending, active_trips: new_active}}
+            %{st | pending_trips: new_pending, active_trips: new_active}}
 
           error ->
             {:reply, {:error, "Error al iniciar viaje: #{inspect(error)}"}, st}
@@ -115,7 +114,7 @@ defmodule UrbanFleet.Server do
 
     if File.exists?(path) do
       contenido = Persistence.read_lines(path) |> Enum.join("\n")
-      IO.puts("\n📜 HISTORIAL\n" <> contenido)
+      IO.puts("\n HISTORIAL\n" <> contenido)
       {:reply, :ok, st}
     else
       {:reply, {:error, "No hay registros"}, st}
@@ -124,7 +123,7 @@ defmodule UrbanFleet.Server do
 
   @impl true
   def handle_call(:mostrar_ranking, _from, st) do
-    IO.puts("\n🏆 RANKING\n------------------")
+    IO.puts("\n RANKING\n------------------")
 
     UserManager.ranking(10)
     |> Enum.each(fn {u, p, r} ->
@@ -145,10 +144,7 @@ defmodule UrbanFleet.Server do
     end
   end
 
-  # =====================================================
-  # ================ GRUPO handle_info/2 ================
-  # =====================================================
-
+  #GRUPO handle_info/2
   @impl true
   def handle_info({:expire_trip, id}, st) do
     case Map.get(st.pending_trips, id) do
@@ -179,3 +175,4 @@ defmodule UrbanFleet.Server do
     end
   end
 end
+# Da manejo a los viajes, puntajes y es un genserver global

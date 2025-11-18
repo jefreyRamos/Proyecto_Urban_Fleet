@@ -1,6 +1,8 @@
 defmodule UrbanFleet.Persistence do
+  # Módulo de persistencia para leer y escribir archivos de datos
   @moduledoc "Funciones utilitarias para leer/escribir archivos (atómicas)."
 
+  # asegurar que el directorio existe
   @spec ensure_dir(String.t()) :: :ok
   def ensure_dir(path) when is_binary(path) do
     dir = Path.dirname(path)
@@ -8,6 +10,7 @@ defmodule UrbanFleet.Persistence do
     :ok
   end
 
+  # escribir líneas de forma atómica
   @spec write_lines(String.t(), [String.t()]) :: :ok | {:error, any()}
   def write_lines(path, lines) when is_binary(path) and is_list(lines) do
     try do
@@ -21,6 +24,7 @@ defmodule UrbanFleet.Persistence do
     end
   end
 
+  # agregar línea al final del archivo
   @spec append_line(String.t(), String.t()) :: :ok | {:error, any()}
   def append_line(path, line) when is_binary(path) and is_binary(line) do
     try do
@@ -32,6 +36,7 @@ defmodule UrbanFleet.Persistence do
     end
   end
 
+  # leer líneas del archivo
   @spec read_lines(String.t()) :: [String.t()]
   def read_lines(path) when is_binary(path) do
     case File.read(path) do

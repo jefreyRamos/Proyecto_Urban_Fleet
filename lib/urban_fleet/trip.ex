@@ -1,4 +1,5 @@
 defmodule UrbanFleet.Trip do
+  # Proceso que maneja un viaje individual
   use GenServer
   alias UrbanFleet.{UserManager, Persistence}
 
@@ -9,7 +10,7 @@ defmodule UrbanFleet.Trip do
 
   @impl true
   def init(info) do
-    IO.puts("🚗 Iniciando viaje de #{info.cliente} hacia #{info.destino} con #{info.conductor}")
+    IO.puts(" Iniciando viaje de #{info.cliente} hacia #{info.destino} con #{info.conductor}")
 
     state =
       info
@@ -31,9 +32,7 @@ defmodule UrbanFleet.Trip do
   @impl true
   def handle_info(:auto_finish, st), do: {:noreply, finish_trip(st, :auto)}
 
-  # -------------------------
-  # FIN DEL VIAJE
-  # -------------------------
+  # Fin del viaje
   defp finish_trip(st, mode) do
     fin = DateTime.utc_now()
     secs = max(1, DateTime.diff(fin, st.inicio))
@@ -48,10 +47,10 @@ defmodule UrbanFleet.Trip do
       "#{DateTime.to_string(fin)};cliente=#{st.cliente};conductor=#{st.conductor};origen=#{st.origen};destino=#{st.destino};estado=Completado;modo=#{mode};duracion=#{secs}s"
     )
 
+    IO.puts("✅ Viaje finalizado: #{st.cliente} → #{st.destino} (#{secs}s)")
+
     # Enviar mensaje al servidor GLOBAL (CORREGIDO)
     send({:global, UrbanFleet.Server}, {:trip_finished, self()})
-
-    IO.puts("✅ Viaje finalizado: #{st.cliente} → #{st.destino} (#{secs}s)")
 
     %{st | estado: :finalizado}
   end
