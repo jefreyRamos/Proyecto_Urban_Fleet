@@ -1,8 +1,9 @@
 defmodule UrbanFleet.TripSupervisor do
   use DynamicSupervisor
 
+  # 🔥 REGISTRO GLOBAL
   def start_link(_opts) do
-    DynamicSupervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+    DynamicSupervisor.start_link(__MODULE__, :ok, name: {:global, __MODULE__})
   end
 
   def init(:ok) do
@@ -12,6 +13,6 @@ defmodule UrbanFleet.TripSupervisor do
   @doc "Crea un nuevo viaje supervisado."
   def start_trip(info) do
     spec = {UrbanFleet.Trip, info}
-    DynamicSupervisor.start_child(__MODULE__, spec)
+    DynamicSupervisor.start_child({:global, __MODULE__}, spec)
   end
 end
